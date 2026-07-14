@@ -1,10 +1,13 @@
 /**
  * 双修对象：三位天尊
- * 品级决定灵石消耗与收益倍率
+ * 品级决定灵石/寿元消耗与收益倍率
  */
 export type DualPartnerId = 'hanhong' | 'yujie' | 'xiguamei'
 
 export type DualGrade = 'yellow' | 'mysterious' | 'earth'
+
+/** 双修代价：灵石 或 寿元（缩短寿元上限） */
+export type DualPayMode = 'stones' | 'lifespan'
 
 export interface DualPartner {
   id: DualPartnerId
@@ -14,6 +17,8 @@ export interface DualPartner {
   gradeName: string
   /** 基础灵石消耗（会随境界略涨） */
   baseCost: number
+  /** 基础寿元消耗（年，会随境界略涨） */
+  baseLifeCost: number
   /** 修为倍率（相对原闭关3月基数） */
   cultMult: number
   /** 功法熟练度倍率 */
@@ -34,6 +39,7 @@ export const DUAL_PARTNERS: DualPartner[] = [
     grade: 'yellow',
     gradeName: '黄阶',
     baseCost: 25,
+    baseLifeCost: 10,
     cultMult: 1.35,
     artXpMult: 1.2,
     healHpPct: 0.25,
@@ -48,6 +54,7 @@ export const DUAL_PARTNERS: DualPartner[] = [
     grade: 'mysterious',
     gradeName: '玄阶',
     baseCost: 55,
+    baseLifeCost: 15,
     cultMult: 1.75,
     artXpMult: 1.55,
     healHpPct: 0.45,
@@ -62,6 +69,7 @@ export const DUAL_PARTNERS: DualPartner[] = [
     grade: 'earth',
     gradeName: '地阶',
     baseCost: 100,
+    baseLifeCost: 25,
     cultMult: 2.35,
     artXpMult: 2.1,
     healHpPct: 0.7,
@@ -80,4 +88,12 @@ export function getDualPartner(id: DualPartnerId): DualPartner {
 /** 实际灵石消耗：基础 × (1 + 境界系数) */
 export function dualCultCost(baseCost: number, realmIndex: number): number {
   return Math.round(baseCost * (1 + realmIndex * 0.12))
+}
+
+/**
+ * 寿元代价（年）：缩短寿元上限。
+ * 品级越高、境界越高，折寿越多；至少 10 年。
+ */
+export function dualCultLifeCost(baseLifeCost: number, realmIndex: number): number {
+  return Math.max(10, Math.round(baseLifeCost * (1 + realmIndex * 0.1)))
 }

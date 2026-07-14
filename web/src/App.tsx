@@ -5,10 +5,14 @@ import { getArt, GRADE_NAMES, getEnabledArts } from './content/arts'
 import {
   DUAL_PARTNERS,
   type DualPartnerId,
+  type DualPayMode,
 } from './content/dualCultivation'
 import { DOLL_LAYOUT, getEquipDef, SLOT_NAME } from './content/equipment'
 import { getHero } from './content/heroes'
-import { getDualCultCostForState } from './systems/actions'
+import {
+  getDualCultCostForState,
+  getDualCultLifeCostForState,
+} from './systems/actions'
 import {
   cultivationNeed,
   formatRealm,
@@ -567,6 +571,12 @@ function GearDoll({
 function DualCultModal({ onClose }: { onClose: () => void }) {
   const player = withGearDefaults(useGameStore((s) => s.player)!)
   const performDualCult = useGameStore((s) => s.performDualCult)
+  const remainLife = Math.max(0, player.lifespan - player.age)
+
+  const run = (id: DualPartnerId, mode: DualPayMode) => {
+    performDualCult(id, mode)
+    onClose()
+  }
 
   return (
     <div className="modal-mask" role="dialog" aria-modal="true" onClick={onClose}>
@@ -578,15 +588,22 @@ function DualCultModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <p className="muted modal-sub">
-          耗时 3 月 · 耗灵石 · 疗伤回血 · 修为与功法精进（品级越高花费与收益越高）。当前灵石{' '}
+          耗时 3 月 · 可付灵石或折寿 · 疗伤回血 · 修为与功法精进。当前灵石{' '}
           <strong style={{ color: 'var(--gold)' }}>{player.spiritStones}</strong>
+          ，余寿约 <strong style={{ color: 'var(--gold)' }}>{remainLife.toFixed(1)}</strong> 年
+          （上限 {player.lifespan} / 虚岁 {player.age.toFixed(1)}）
         </p>
         <div className="modal-body">
           {DUAL_PARTNERS.map((p) => {
-            const cost = getDualCultCostForState(player, p.id)
-            const can = player.spiritStones >= cost
+            const stoneCost = getDualCultCostForState(player, p.id)
+            const lifeCost = getDualCultLifeCostForState(player, p.id)
+            const canStone = player.spiritStones >= stoneCost
+            // 三月后还要活着，并至少留半年余量
+            const canLife = player.lifespan - (player.age + 3 / 12) >= lifeCost + 0.5
+            const canAny = canStone || canLife
+            const short = p.name.replace('天尊', '')
             return (
-              <div key={p.id} className={`talent-detail-card ${can ? '' : 'dim'}`}>
+              <div key={p.id} className={`talent-detail-card ${canAny ? '' : 'dim'}`}>
                 <div className="talent-detail-title">
                   <strong>{p.name}</strong>
                   <span className="tag">{p.gradeName}</span>
@@ -595,25 +612,33 @@ function DualCultModal({ onClose }: { onClose: () => void }) {
                 <p className="talent-detail-desc">{p.title}</p>
                 <p className="talent-detail-desc">{p.blurb}</p>
                 <ul className="talent-effect-list">
-                  <li>灵石消耗：{cost}</li>
-                  <li>修为收益：约 ×{p.cultMult.toFixed(2)}（相对短闭关）</li>
+                  <li>灵石代价：{stoneCost}</li>
+                  <li>折寿代价：{lifeCost} 年（永久缩短寿元上限）</li>
+                  <li>修为收益：约 ×{p.cultMult.toFixed(2)}（折寿略高）</li>
                   <li>功法熟练：约 ×{p.artXpMult.toFixed(2)}</li>
                   <li>
                     疗伤：回血约 {Math.round(p.healHpPct * 100)}% 上限，伤势 -{p.healInjury}
                   </li>
                 </ul>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-mini"
-                  style={{ marginTop: 8 }}
-                  disabled={!can}
-                  onClick={() => {
-                    performDualCult(p.id as DualPartnerId)
-                    onClose()
-                  }}
-                >
-                  {can ? `与${p.name.replace('天尊', '')}双修` : '灵石不足'}
-                </button>
+                <div className="dual-pay-row">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-mini"
+                    disabled={!canStone}
+                    onClick={() => run(p.id as DualPartnerId, 'stones')}
+                  >
+                    {canStone ? `灵石·与${short}` : '灵石不足'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-mini btn-life-pay"
+                    disabled={!canLife}
+                    title="以寿元上限换取双修，不可逆"
+                    onClick={() => run(p.id as DualPartnerId, 'lifespan')}
+                  >
+                    {canLife ? `折寿${lifeCost}年·与${short}` : '寿元不足'}
+                  </button>
+                </div>
               </div>
             )
           })}

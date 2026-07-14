@@ -15,7 +15,7 @@ import {
   runDualCultivation,
   setMainArt,
 } from '../systems/actions'
-import type { DualPartnerId } from '../content/dualCultivation'
+import type { DualPartnerId, DualPayMode } from '../content/dualCultivation'
 import { createPlayer } from '../systems/createPlayer'
 import { equipItem, sellEquipment, unequipSlot } from '../systems/equipment'
 import { withGearDefaults } from '../systems/effects'
@@ -69,8 +69,8 @@ interface GameStore {
   selectMainArt: (artId: string) => void
   beginPlay: () => void
   doAction: (id: ActionId) => void
-  /** 选择天尊后执行双修；返回是否成功开销结算（灵石不足时 false） */
-  performDualCult: (partnerId: DualPartnerId) => boolean
+  /** 选择天尊后执行双修；payMode 为灵石或折寿；不足时 false */
+  performDualCult: (partnerId: DualPartnerId, payMode?: DualPayMode) => boolean
   pickChoice: (choiceId: string) => void
   acknowledgeResult: () => void
   changeMainFromPlay: (artId: string) => void
@@ -155,6 +155,12 @@ function summarizePlayerDelta(before: PlayerState, after: PlayerState): string[]
   if (after.age !== before.age || after.year !== before.year || after.month !== before.month) {
     lines.push(
       `时光流逝 → 历法 ${after.year}年${after.month}月 · 虚岁 ${after.age.toFixed(1)}`,
+    )
+  }
+  if (after.lifespan !== before.lifespan) {
+    const d = after.lifespan - before.lifespan
+    lines.push(
+      `寿元上限 ${before.lifespan} → ${after.lifespan}（${d > 0 ? '+' : ''}${d}）`,
     )
   }
   return lines
@@ -312,12 +318,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     get().persist()
   },
 
-  performDualCult: (partnerId) => {
+  performDualCult: (partnerId, payMode = 'stones') => {
     const player = get().player
     if (!player || player.dead || player.won) return false
 
-    const result = runDualCultivation(player, partnerId)
-    const onlyWarn = result.messages.some((m) => m.includes('灵石不足'))
+    const result = runDualCultivation(player, partnerId, payMode)
+    const onlyWarn = result.messages.some(
+      (m) => m.includes('灵石不足') || m.includes('寿元不足') || m.includes('无法与'),
+    )
 
     if (onlyWarn) {
       set({

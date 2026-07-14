@@ -82,13 +82,20 @@ export function sellPriceOfGrade(grade: ArtGrade): number {
     mysterious: 88,
     earth: 160,
     heaven: 280,
-    immortal: 480,
+    immortal: 888,
   }
   return map[grade] ?? 10
 }
 
+/** 神级专属回收价（极难获取，卖了血亏） */
+const GOD_SELL: Record<string, number> = {
+  eternity: 1666,
+  lun_ge_mouth: 1666,
+}
+
 export function sellPriceOfItem(item: OwnedEquip): number {
   const def = getEquipDef(item.defId)
+  if (def && GOD_SELL[def.id] != null) return GOD_SELL[def.id]
   // 以实际品阶为准；若无定义则按 def 品阶
   return sellPriceOfGrade(item.grade ?? def?.grade ?? 'mortal')
 }

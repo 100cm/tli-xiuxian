@@ -189,6 +189,9 @@ export interface ChoiceOutcome {
   artFragment?: boolean
   equipId?: string
   equipGrade?: ArtGrade
+  /** 额外装备（神级套装等一次给多件） */
+  equipId2?: string
+  equipGrade2?: ArtGrade
   injury?: number
   skillXp?: number
   death?: boolean

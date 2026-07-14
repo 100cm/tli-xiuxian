@@ -38,8 +38,10 @@ import { hasTalentRule } from './talentRoll'
 import { EQUIPMENT } from '../content/equipment'
 import {
   dualCultCost,
+  dualCultLifeCost,
   getDualPartner,
   type DualPartnerId,
+  type DualPayMode,
 } from '../content/dualCultivation'
 
 export interface ActionResult {
@@ -249,7 +251,7 @@ export function listActions(state: PlayerState): {
     {
       id: 'dual_cult',
       label: '双修',
-      hint: '选天尊·耗灵石·疗伤涨修为功法',
+      hint: '选天尊·灵石或折寿·疗伤涨修为功法',
     },
     { id: 'cultivate_6', label: '闭关·6月', hint: '稳定修为' },
     { id: 'cultivate_12', label: '苦修·年', hint: '高收益，心魔风险' },
@@ -752,7 +754,13 @@ function applyOutcome(
     const granted = grantEquipment(s, o.equipId, o.equipGrade)
     s = granted.state
     messages.push(granted.log)
-  } else if (rng.next() < 0.18 && (o.cultivation || o.stones || o.artId)) {
+  }
+  if (o.equipId2) {
+    const granted2 = grantEquipment(s, o.equipId2, o.equipGrade2)
+    s = granted2.state
+    messages.push(granted2.log)
+  }
+  if (!o.equipId && !o.equipId2 && rng.next() < 0.18 && (o.cultivation || o.stones || o.artId)) {
     // 有收获的结算附带小概率掉装
     const def = rng.pick(EQUIPMENT.filter((e) => e.grade === 'yellow' || e.grade === 'mortal'))
     const granted = grantEquipment(s, def.id, def.grade)
@@ -799,14 +807,16 @@ export function getHeroResourceLabel(state: PlayerState): string {
 }
 
 /**
- * 双修：耗时 3 月，耗灵石，按天尊品级
+ * 双修：耗时 3 月，代价可选灵石或寿元，按天尊品级
  * - 修为：高于原闭关 3 月
  * - 疗伤回血
  * - 主修功法熟练度大涨
+ * - 寿元支付：永久缩短寿元上限（折寿），收益与灵石版相同
  */
 export function runDualCultivation(
   state: PlayerState,
   partnerId: DualPartnerId,
+  payMode: DualPayMode = 'stones',
 ): ActionResult {
   if (state.dead || state.won) {
     return { state, messages: ['本局已结束。'], ended: true }
@@ -814,23 +824,52 @@ export function runDualCultivation(
 
   const partner = getDualPartner(partnerId)
   const rng = createRng(
-    (state.seed + state.year * 97 + state.month * 13 + partnerId.length * 7 + state.log.length) >>>
+    (state.seed +
+      state.year * 97 +
+      state.month * 13 +
+      partnerId.length * 7 +
+      state.log.length +
+      (payMode === 'lifespan' ? 333 : 0)) >>>
       0,
   )
   let s = withGearDefaults({ ...state })
   const messages: string[] = []
 
-  const cost = dualCultCost(partner.baseCost, realmIndex(s.realm))
-  if (s.spiritStones < cost) {
-    return {
-      state,
-      messages: [
-        `灵石不足：与【${partner.name}】双修需 ${cost} 灵石（当前 ${s.spiritStones}）。`,
-      ],
+  const stoneCost = dualCultCost(partner.baseCost, realmIndex(s.realm))
+  const lifeCost = dualCultLifeCost(partner.baseLifeCost, realmIndex(s.realm))
+  // 三月后年龄约 +0.25，预留一点余量
+  const lifeAfterMonths = s.age + 3 / 12
+  const remainingLife = s.lifespan - lifeAfterMonths
+
+  if (payMode === 'stones') {
+    if (s.spiritStones < stoneCost) {
+      return {
+        state,
+        messages: [
+          `灵石不足：与【${partner.name}】双修需 ${stoneCost} 灵石（当前 ${s.spiritStones}）。可改选「折寿双修」。`,
+        ],
+      }
+    }
+    s.spiritStones -= stoneCost
+  } else {
+    if (remainingLife < lifeCost + 0.5) {
+      return {
+        state,
+        messages: [
+          `寿元不足：与【${partner.name}】折寿双修需折寿 ${lifeCost} 年（当前余寿约 ${Math.max(0, s.lifespan - s.age).toFixed(1)} 年，且须留活路）。可改选灵石支付。`,
+        ],
+      }
+    }
+    const beforeCap = s.lifespan
+    s.lifespan = Math.max(Math.ceil(lifeAfterMonths + 0.5), s.lifespan - lifeCost)
+    if (s.lifespan >= beforeCap) {
+      return {
+        state,
+        messages: [`寿元已不足再折，无法与【${partner.name}】以寿换修。`],
+      }
     }
   }
 
-  s.spiritStones -= cost
   // 耗时 3 月
   s = advanceTime(s, 3, rng)
   if (s.dead) {
@@ -849,8 +888,10 @@ export function runDualCultivation(
   s.heartDemonRisk = Math.max(0, s.heartDemonRisk - 1)
 
   // 修为：原闭关 3 月基数约 18，双修按品级倍率拉高
+  // 折寿双修略加一点修为体感（以命换道）
+  const lifeBonus = payMode === 'lifespan' ? 1.08 : 1
   const mult = cultivateMultiplier(s)
-  const baseCult = 18 * partner.cultMult
+  const baseCult = 18 * partner.cultMult * lifeBonus
   const cultGain = baseCult * mult * (0.95 + rng.next() * 0.15)
   const r = tryCultivationGain(s, cultGain)
   s = r.state
@@ -861,7 +902,7 @@ export function runDualCultivation(
   if (mainId) {
     const art = getArt(mainId)
     const beforeLv = s.arts.find((a) => a.artId === mainId)?.skillLevel ?? 1
-    const xpGain = Math.round((48 + rng.int(0, 24)) * partner.artXpMult)
+    const xpGain = Math.round((48 + rng.int(0, 24)) * partner.artXpMult * lifeBonus)
     s.arts = applySkillXp(s.arts, mainId, xpGain)
     const afterLv = s.arts.find((a) => a.artId === mainId)?.skillLevel ?? 1
     const attrsAfter = displayAttrs(s)
@@ -873,10 +914,16 @@ export function runDualCultivation(
     if (attrDiff) messages.push(`功法共鸣属性：${attrDiff}`)
   }
 
+  const payLine =
+    payMode === 'stones'
+      ? `耗费灵石 ${stoneCost}（余 ${s.spiritStones}）`
+      : `以寿换道：寿元上限 -${lifeCost}（现 ${s.lifespan} 岁上限，虚岁 ${s.age.toFixed(1)}）`
+
   messages.unshift(
     `你与【${partner.name}】（${partner.gradeName}）双修三月。`,
     partner.blurb,
-    `耗费灵石 ${cost}（余 ${s.spiritStones}）`,
+    payLine,
+    payMode === 'lifespan' ? '折寿双修，修为共鸣略强于灵石之交。' : '',
     `疗伤：气血 ${beforeHp}→${s.hp}` +
       (beforeInjury !== s.injury ? `，伤势 ${beforeInjury}→${s.injury}` : '，伤势无大碍或已减轻'),
     ...r.messages,
@@ -886,10 +933,12 @@ export function runDualCultivation(
 
   s = pushLog(
     s,
-    `双修·${partner.name}：灵石-${cost}；${r.messages.join(' ')}；${artLine}`,
+    payMode === 'stones'
+      ? `双修·${partner.name}：灵石-${stoneCost}；${r.messages.join(' ')}；${artLine}`
+      : `双修·${partner.name}：折寿-${lifeCost}年（上限${s.lifespan}）；${r.messages.join(' ')}；${artLine}`,
   )
 
-  return { state: clampState(s), messages }
+  return { state: clampState(s), messages: messages.filter(Boolean) }
 }
 
 /** 查询某天尊当前境界下的实际灵石价 */
@@ -899,4 +948,13 @@ export function getDualCultCostForState(
 ): number {
   const p = getDualPartner(partnerId)
   return dualCultCost(p.baseCost, realmIndex(state.realm))
+}
+
+/** 查询某天尊当前境界下的折寿年数 */
+export function getDualCultLifeCostForState(
+  state: PlayerState,
+  partnerId: DualPartnerId,
+): number {
+  const p = getDualPartner(partnerId)
+  return dualCultLifeCost(p.baseLifeCost, realmIndex(state.realm))
 }

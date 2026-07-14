@@ -312,6 +312,24 @@ h3 {
   box-shadow: 0 0 0 1px var(--gold), 0 0 12px rgba(201, 162, 39, 0.2);
 }
 
+.dual-pay-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.btn-life-pay {
+  border-color: var(--danger-bright, #c45c5c);
+  color: var(--danger-bright, #e8a0a0);
+}
+
+.btn-life-pay:not(:disabled):hover,
+.btn-life-pay:not(:disabled):active {
+  background: rgba(180, 60, 60, 0.2);
+  border-color: var(--danger-bright, #e07070);
+}
+
 .play-head-main {
   flex: 1;
   min-width: 0;

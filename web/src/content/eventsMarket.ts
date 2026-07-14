@@ -690,4 +690,73 @@ export const MARKET_EVENTS: GameEvent[] = [
       },
     ],
   },
+
+  // ── 神级至宝（仙阶）──
+  {
+    id: 'mkt_god_relics',
+    title: '神藏阁·至宝暗柜',
+    body: '坊市最深处铁门后，两件神级法器静静躺在紫金匣中：一枚戒面流转星砂的「永恒」，以及半张会笑的唇形奇物「伦哥哥的嘴」。掌柜只收天价灵石，概不赊欠、不可还价。',
+    tags: ['market', 'loot'],
+    minRealm: 'foundation',
+    maxRealm: 'soul_transformation',
+    weight: 9,
+    choices: [
+      {
+        id: 'buy_eternity',
+        text: '购入神级·永恒（戒指）',
+        costStones: 888,
+        hint: '仙阶戒指：修炼、突破、道心气运',
+        outcomes: [
+          {
+            weight: 100,
+            log: '星砂入指，「永恒」与你同寿。道心气运为之一振。',
+            equipId: 'eternity',
+            equipGrade: 'immortal',
+            daoHeart: 8,
+          },
+        ],
+      },
+      {
+        id: 'buy_mouth',
+        text: '购入神级·伦哥哥的嘴（副宝）',
+        costStones: 888,
+        hint: '仙阶副宝：嘴遁、论道、交易、脱逃',
+        outcomes: [
+          {
+            weight: 100,
+            log: '唇形奇物入手，你忽然觉得自己很会说话。',
+            equipId: 'lun_ge_mouth',
+            equipGrade: 'immortal',
+          },
+        ],
+      },
+      {
+        id: 'buy_both',
+        text: '两件都要（神级套）',
+        costStones: 1600,
+        hint: '一次拿走永恒 + 伦哥哥的嘴',
+        outcomes: [
+          {
+            weight: 100,
+            log: '掌柜两眼放光。你抱走「永恒」与「伦哥哥的嘴」，整座坊市都在传你豪横。',
+            equipId: 'eternity',
+            equipGrade: 'immortal',
+            equipId2: 'lun_ge_mouth',
+            equipGrade2: 'immortal',
+            daoHeart: 6,
+          },
+        ],
+      },
+      {
+        id: 'leave',
+        text: '摸不起，默默离开',
+        outcomes: [
+          {
+            weight: 100,
+            log: '你记下暗柜位置。神级法器，日后再来。',
+          },
+        ],
+      },
+    ],
+  },
 ]

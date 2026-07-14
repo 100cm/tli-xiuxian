@@ -294,6 +294,42 @@ export const EQUIPMENT: EquipDef[] = [
       { type: 'combat', key: 'burst', value: 8 },
     ],
   },
+
+  // —— 神级（仙阶）——
+  {
+    id: 'eternity',
+    name: '永恒',
+    slot: 'ring',
+    grade: 'immortal',
+    description:
+      '神级至宝。据说与时间同寿，戒面流转不息的星砂。佩戴者气运与道心皆得永恒加持，修炼与突破如有神助。',
+    effects: [
+      { type: 'attr', key: 'will', value: 5 },
+      { type: 'attr', key: 'luck', value: 4 },
+      { type: 'attr', key: 'int', value: 3 },
+      { type: 'attr', key: 'con', value: 2 },
+      { type: 'cultivateMult', value: 0.18 },
+      { type: 'checkBonus', tags: ['breakthrough', 'insight'], value: 14 },
+      { type: 'maxHp', value: 40 },
+    ],
+  },
+  {
+    id: 'lun_ge_mouth',
+    name: '伦哥哥的嘴',
+    slot: 'offhand',
+    grade: 'immortal',
+    description:
+      '神级奇物，形如半张笑唇。据说持有者言出法随、嘴遁无敌：论道碾压、砍价必成，危难时一句「我超勇的」便能翻盘。旁人只觉离谱，你却当真受益。',
+    effects: [
+      { type: 'attr', key: 'int', value: 4 },
+      { type: 'attr', key: 'luck', value: 5 },
+      { type: 'attr', key: 'agi', value: 2 },
+      { type: 'attr', key: 'str', value: 2 },
+      { type: 'checkBonus', tags: ['social', 'trade', 'insight', 'escape'], value: 16 },
+      { type: 'combat', key: 'burst', value: 12 },
+      { type: 'maxHp', value: 28 },
+    ],
+  },
 ]
 
 export function getEquipDef(id: string): EquipDef | undefined {
