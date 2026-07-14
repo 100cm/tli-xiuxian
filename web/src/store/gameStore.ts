@@ -15,6 +15,11 @@ import {
   runDualCultivation,
   setMainArt,
 } from '../systems/actions'
+import {
+  runAllInEquip,
+  runStoneBet,
+  type GambleBetKind,
+} from '../systems/gamble'
 import type { DualPartnerId, DualPayMode } from '../content/dualCultivation'
 import { createPlayer } from '../systems/createPlayer'
 import { equipItem, sellEquipment, unequipSlot } from '../systems/equipment'
@@ -31,13 +36,13 @@ const SAVE_KEY = 'tli-choose-save-v1'
 
 const ACTION_TITLES: Partial<Record<ActionId, string>> = {
   dual_cult: '双修',
-  cultivate_6: '闭关修炼（6月）',
+  gamble: '赌坊',
   cultivate_12: '苦修闭关（12月）',
   cultivate_art: '专修功法',
   explore_low: '谨慎探险',
   explore_mid: '寻常历练',
   explore_high: '冒进寻宝',
-  duel: '寻人交手',
+  duel: '交手 PK',
   trade: '坊市交易',
   heal: '疗伤静养',
   breakthrough: '冲击大境界',
@@ -71,6 +76,10 @@ interface GameStore {
   doAction: (id: ActionId) => void
   /** 选择天尊后执行双修；payMode 为灵石或折寿；不足时 false */
   performDualCult: (partnerId: DualPartnerId, payMode?: DualPayMode) => boolean
+  /** 赌坊：灵石对赌 */
+  performGambleBet: (stake: number, kind: GambleBetKind) => boolean
+  /** 赌坊：梭哈赌装备 */
+  performGambleAllIn: (stake: number) => boolean
   pickChoice: (choiceId: string) => void
   acknowledgeResult: () => void
   changeMainFromPlay: (artId: string) => void
@@ -259,8 +268,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return
     }
 
-    // 双修：由界面弹窗选天尊，不在此直接结算
-    if (id === 'dual_cult') {
+    // 双修 / 赌坊：由界面弹窗结算
+    if (id === 'dual_cult' || id === 'gamble') {
       return
     }
 
@@ -362,6 +371,76 @@ export const useGameStore = create<GameStore>((set, get) => ({
         title: '双修 · 结果',
         lines,
         next,
+      },
+      screen: 'result',
+      toast: [],
+    })
+    get().persist()
+    return true
+  },
+
+  performGambleBet: (stake, kind) => {
+    const player = get().player
+    if (!player || player.dead || player.won) return false
+    const result = runStoneBet(player, stake, kind)
+    const onlyWarn = result.messages.some(
+      (m) => m.includes('灵石不足') || m.includes('至少') || m.includes('下注至少'),
+    )
+    if (onlyWarn && !result.ended) {
+      set({
+        pendingResult: { title: '赌坊 · 无法下注', lines: result.messages, next: 'play' },
+        screen: 'result',
+        toast: [],
+      })
+      return false
+    }
+    const delta = summarizePlayerDelta(player, result.state)
+    const lines = buildResultLines(result.messages, delta)
+    set({
+      player: result.state,
+      activeEvent: null,
+      eventPrelude: [],
+      pendingResult: {
+        title: result.ended ? '赌坊 · 结局' : '赌坊 · 对赌结果',
+        lines: result.ended
+          ? [...lines, result.state.endingText ?? ''].filter(Boolean)
+          : lines,
+        next: result.state.dead || result.state.won ? 'ending' : 'play',
+      },
+      screen: 'result',
+      toast: [],
+    })
+    get().persist()
+    return true
+  },
+
+  performGambleAllIn: (stake) => {
+    const player = get().player
+    if (!player || player.dead || player.won) return false
+    const result = runAllInEquip(player, stake)
+    const onlyWarn = result.messages.some(
+      (m) => m.includes('灵石不足') || m.includes('至少押'),
+    )
+    if (onlyWarn && !result.ended) {
+      set({
+        pendingResult: { title: '赌坊 · 无法梭哈', lines: result.messages, next: 'play' },
+        screen: 'result',
+        toast: [],
+      })
+      return false
+    }
+    const delta = summarizePlayerDelta(player, result.state)
+    const lines = buildResultLines(result.messages, delta)
+    set({
+      player: result.state,
+      activeEvent: null,
+      eventPrelude: [],
+      pendingResult: {
+        title: result.ended ? '赌坊 · 结局' : '赌坊 · 梭哈赌宝',
+        lines: result.ended
+          ? [...lines, result.state.endingText ?? ''].filter(Boolean)
+          : lines,
+        next: result.state.dead || result.state.won ? 'ending' : 'play',
       },
       screen: 'result',
       toast: [],

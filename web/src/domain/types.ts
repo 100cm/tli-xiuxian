@@ -275,7 +275,7 @@ export interface PlayerState {
 
 export type ActionId =
   | 'dual_cult'
-  | 'cultivate_6'
+  | 'gamble'
   | 'cultivate_12'
   | 'cultivate_art'
   | 'explore_low'

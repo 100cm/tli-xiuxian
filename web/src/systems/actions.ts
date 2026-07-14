@@ -43,6 +43,7 @@ import {
   type DualPartnerId,
   type DualPayMode,
 } from '../content/dualCultivation'
+import { runPk } from './pk'
 
 export interface ActionResult {
   state: PlayerState
@@ -253,7 +254,13 @@ export function listActions(state: PlayerState): {
       label: '双修',
       hint: '选天尊·灵石或折寿·疗伤涨修为功法',
     },
-    { id: 'cultivate_6', label: '闭关·6月', hint: '稳定修为' },
+    {
+      id: 'gamble',
+      label: '赌坊',
+      hint: '下注灵石或梭哈赌装·长期必亏',
+      disabled: state.spiritStones < 5,
+      reason: '至少 5 灵石才能进场',
+    },
     { id: 'cultivate_12', label: '苦修·年', hint: '高收益，心魔风险' },
     {
       id: 'cultivate_art',
@@ -268,7 +275,7 @@ export function listActions(state: PlayerState): {
     {
       id: 'duel',
       label: '交手',
-      hint: 'PK 夺宝·2月',
+      hint: '即时PK·战力对决·或遇强敌·2月',
       disabled: state.realm === 'qi_refining' && state.layer < 4,
       reason: '炼气 4 层后解锁',
     },
@@ -336,8 +343,16 @@ export function runAction(state: PlayerState, actionId: ActionId): ActionResult 
     }
   }
 
-  if (actionId.startsWith('cultivate_') && actionId !== 'cultivate_art') {
-    const months = actionId === 'cultivate_6' ? 6 : 12
+  if (actionId === 'gamble') {
+    // 由 UI 赌坊弹窗结算
+    return {
+      state: s,
+      messages: ['请选择赌法'],
+    }
+  }
+
+  if (actionId === 'cultivate_12') {
+    const months = 12
     applyMonths(months)
     if (s.dead) {
       s = pushLog(s, s.endingText!)
@@ -345,20 +360,19 @@ export function runAction(state: PlayerState, actionId: ActionId): ActionResult 
     }
 
     const mult = cultivateMultiplier(s)
-    const base = months === 6 ? 42 : 95
+    const base = 95
     const gain = base * mult * (0.9 + rng.next() * 0.2)
-    s.heartDemonRisk += months === 12 ? 2 : 1
-    if (months === 12 && rng.next() < 0.15 + s.heartDemonRisk * 0.01) {
+    s.heartDemonRisk += 2
+    if (rng.next() < 0.15 + s.heartDemonRisk * 0.01) {
       const ev = EVENTS.find((e) => e.id === 'closed_door_insight')
       s = pushLog(s, `苦修 ${months} 个月，异象陡生……`)
-      return { state: clampState(s), messages: [`闭关 ${months} 月`], event: ev }
+      return { state: clampState(s), messages: [`苦修 ${months} 月`], event: ev }
     }
 
     const r = tryCultivationGain(s, gain)
     s = r.state
-    messages.push(`你闭关 ${months} 个月，调息炼气。`, ...r.messages)
-    s = pushLog(s, `闭关 ${months} 个月。${r.messages.join(' ')}`)
-    // 小概率普通事件（不含坊市）
+    messages.push(`你苦修闭关 ${months} 个月，调息炼气。`, ...r.messages)
+    s = pushLog(s, `苦修 ${months} 个月。${r.messages.join(' ')}`)
     if (rng.next() < 0.12) {
       const ev = pickExploreEvent(s, rng, ['cultivate'])
       if (ev) {
@@ -475,18 +489,12 @@ export function runAction(state: PlayerState, actionId: ActionId): ActionResult 
   }
 
   if (actionId === 'duel') {
-    applyMonths(2)
-    if (s.dead) {
-      s = pushLog(s, s.endingText!)
-      return { state: clampState(s), messages: [s.endingText!], ended: true }
-    }
-    const ev =
-      pickExploreEvent(s, rng, ['combat']) ?? EVENTS.find((e) => e.id === 'rogue_duel' && !isMarketEvent(e))
-    s = pushLog(s, '你寻人交手……')
+    // 即时 PK：战力对抗，非随机事件树
+    const pk = runPk(s)
     return {
-      state: clampState(s),
-      messages: ['你耗时 2 月寻访可交手的修士。', '终于撞见机缘（或杀机）——'],
-      event: ev,
+      state: clampState(pk.state),
+      messages: pk.messages,
+      ended: pk.ended,
     }
   }
 

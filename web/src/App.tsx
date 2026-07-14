@@ -14,6 +14,11 @@ import {
   getDualCultLifeCostForState,
 } from './systems/actions'
 import {
+  allInOddsPreview,
+  BET_PRESETS,
+  type GambleBetKind,
+} from './systems/gamble'
+import {
   cultivationNeed,
   formatRealm,
   getCultivationTip,
@@ -568,6 +573,197 @@ function GearDoll({
   )
 }
 
+function GambleModal({ onClose }: { onClose: () => void }) {
+  const player = withGearDefaults(useGameStore((s) => s.player)!)
+  const performGambleBet = useGameStore((s) => s.performGambleBet)
+  const performGambleAllIn = useGameStore((s) => s.performGambleAllIn)
+  const [stake, setStake] = useState(() =>
+    Math.min(50, Math.max(5, Math.floor(player.spiritStones / 4) || 5)),
+  )
+  const [allInStake, setAllInStake] = useState(() => player.spiritStones)
+  const stones = player.spiritStones
+
+  const clampBet = (n: number) => Math.max(5, Math.min(stones, Math.floor(n)))
+  const clampAllIn = (n: number) => Math.max(20, Math.min(stones, Math.floor(n)))
+
+  const doBet = (kind: GambleBetKind) => {
+    const s = clampBet(stake)
+    if (s > stones) return
+    performGambleBet(s, kind)
+    onClose()
+  }
+
+  const doAllIn = (amount: number) => {
+    const s = clampAllIn(amount)
+    if (s > stones || s < 20) return
+    performGambleAllIn(s)
+    onClose()
+  }
+
+  return (
+    <div className="modal-mask" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal-sheet panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2>赌坊</h2>
+          <button type="button" className="btn btn-mini" onClick={onClose}>
+            关闭
+          </button>
+        </div>
+        <p className="muted modal-sub">
+          庄家抽水，长期必亏。灵石{' '}
+          <strong style={{ color: 'var(--gold)' }}>{stones}</strong>
+          。对赌 1 月 · 梭哈赌宝 2 月。
+        </p>
+        <div className="modal-body">
+          <div className="talent-detail-card">
+            <div className="talent-detail-title">
+              <strong>灵石对赌</strong>
+              <span className="tag">猜大小 / 气运</span>
+            </div>
+            <p className="talent-detail-desc">
+              猜大/小约 1.85 倍返还，气运约 2.4 倍但更难中。胜率不到一半，多赌多输。
+            </p>
+            <div className="gamble-presets">
+              {BET_PRESETS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={`btn btn-mini ${stake === p ? 'btn-primary' : ''}`}
+                  disabled={stones < p}
+                  onClick={() => setStake(p)}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="btn btn-mini"
+                disabled={stones < 5}
+                onClick={() => setStake(Math.floor(stones / 2))}
+              >
+                半仓
+              </button>
+              <button
+                type="button"
+                className="btn btn-mini"
+                disabled={stones < 5}
+                onClick={() => setStake(stones)}
+              >
+                全押
+              </button>
+            </div>
+            <label className="gamble-stake-label">
+              注额
+              <input
+                type="number"
+                min={5}
+                max={stones}
+                value={stake}
+                className="gamble-input"
+                onChange={(e) => setStake(Number(e.target.value) || 5)}
+              />
+            </label>
+            <div className="dual-pay-row">
+              <button
+                type="button"
+                className="btn btn-primary btn-mini"
+                disabled={stones < 5 || stake < 5}
+                onClick={() => doBet('high')}
+              >
+                猜大
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-mini"
+                disabled={stones < 5 || stake < 5}
+                onClick={() => doBet('low')}
+              >
+                猜小
+              </button>
+              <button
+                type="button"
+                className="btn btn-mini btn-life-pay"
+                disabled={stones < 5 || stake < 5}
+                onClick={() => doBet('lucky')}
+              >
+                赌气运·高赔
+              </button>
+            </div>
+          </div>
+
+          <div className="talent-detail-card">
+            <div className="talent-detail-title">
+              <strong>梭哈赌宝</strong>
+              <span className="tag">押石换装</span>
+            </div>
+            <p className="talent-detail-desc">
+              灵石砸进宝匣换随机法器。押得越多，黄/玄/神级概率越高，但空匣与凡货仍是主流——一般都是亏的。
+            </p>
+            <p className="muted" style={{ fontSize: '0.72rem', margin: '4px 0 8px' }}>
+              {allInOddsPreview(Math.max(20, Math.min(stones, allInStake)))}
+            </p>
+            <div className="gamble-presets">
+              <button
+                type="button"
+                className="btn btn-mini"
+                disabled={stones < 20}
+                onClick={() => setAllInStake(Math.max(20, Math.floor(stones * 0.25)))}
+              >
+                1/4
+              </button>
+              <button
+                type="button"
+                className="btn btn-mini"
+                disabled={stones < 20}
+                onClick={() => setAllInStake(Math.max(20, Math.floor(stones * 0.5)))}
+              >
+                半梭
+              </button>
+              <button
+                type="button"
+                className="btn btn-mini"
+                disabled={stones < 20}
+                onClick={() => setAllInStake(stones)}
+              >
+                全梭
+              </button>
+            </div>
+            <label className="gamble-stake-label">
+              梭哈额
+              <input
+                type="number"
+                min={20}
+                max={stones}
+                value={allInStake}
+                className="gamble-input"
+                onChange={(e) => setAllInStake(Number(e.target.value) || 20)}
+              />
+            </label>
+            <div className="dual-pay-row">
+              <button
+                type="button"
+                className="btn btn-primary btn-mini"
+                disabled={stones < 20}
+                onClick={() => doAllIn(allInStake)}
+              >
+                开匣·押 {Math.min(stones, Math.max(20, allInStake))} 石
+              </button>
+              <button
+                type="button"
+                className="btn btn-mini btn-life-pay"
+                disabled={stones < 20}
+                onClick={() => doAllIn(stones)}
+              >
+                梭哈全部 {stones} 石
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DualCultModal({ onClose }: { onClose: () => void }) {
   const player = withGearDefaults(useGameStore((s) => s.player)!)
   const performDualCult = useGameStore((s) => s.performDualCult)
@@ -657,6 +853,7 @@ function PlayScreen() {
   const [talentFocus, setTalentFocus] = useState<string | undefined>()
   const [gearSlot, setGearSlot] = useState<EquipSlot | 'bag' | null>(null)
   const [dualOpen, setDualOpen] = useState(false)
+  const [gambleOpen, setGambleOpen] = useState(false)
   const [attrOpen, setAttrOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
   const [statusFocus, setStatusFocus] = useState<string | undefined>()
@@ -849,12 +1046,16 @@ function PlayScreen() {
             <button
               type="button"
               key={a.id}
-              className={`btn btn-action ${a.id === 'breakthrough' && !a.disabled ? 'btn-ready' : ''} ${a.id === 'dual_cult' ? 'btn-dual' : ''}`}
+              className={`btn btn-action ${a.id === 'breakthrough' && !a.disabled ? 'btn-ready' : ''} ${a.id === 'dual_cult' ? 'btn-dual' : ''} ${a.id === 'gamble' ? 'btn-gamble' : ''}`}
               disabled={a.disabled}
               title={a.disabled ? a.reason : a.hint}
               onClick={() => {
                 if (a.id === 'dual_cult') {
                   setDualOpen(true)
+                  return
+                }
+                if (a.id === 'gamble') {
+                  setGambleOpen(true)
                   return
                 }
                 doAction(a.id)
@@ -875,6 +1076,7 @@ function PlayScreen() {
       )}
       {gearSlot && <GearModal slot={gearSlot} onClose={() => setGearSlot(null)} />}
       {dualOpen && <DualCultModal onClose={() => setDualOpen(false)} />}
+      {gambleOpen && <GambleModal onClose={() => setGambleOpen(false)} />}
       {attrOpen && (
         <AttrHelpModal attrs={attrs} base={player.attrs} onClose={() => setAttrOpen(false)} />
       )}

@@ -319,6 +319,37 @@ h3 {
   margin-top: 8px;
 }
 
+.gamble-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.gamble-stake-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin: 4px 0 6px;
+}
+
+.gamble-input {
+  width: 88px;
+  padding: 4px 6px;
+  border: 1px solid var(--gold-dim);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--gold-bright);
+  font-size: 0.85rem;
+}
+
+.btn-gamble {
+  border-color: #a67c2a;
+  color: #f0d78c;
+}
+
 .btn-life-pay {
   border-color: var(--danger-bright, #c45c5c);
   color: var(--danger-bright, #e8a0a0);
