@@ -195,6 +195,22 @@ h3 {
   gap: 8px;
 }
 
+.play-avatar-btn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 6px;
+  line-height: 0;
+}
+
+.play-avatar-btn:active .play-avatar,
+.play-avatar-btn:hover .play-avatar {
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 12px rgba(201, 162, 39, 0.45);
+}
+
 .play-avatar {
   width: 40px;
   height: 40px;
@@ -205,6 +221,95 @@ h3 {
   box-shadow: 0 0 8px rgba(201, 162, 39, 0.25);
   flex-shrink: 0;
   background: #1a1208;
+  display: block;
+}
+
+.play-name-btn {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+}
+
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+  text-decoration: underline dotted transparent;
+  text-underline-offset: 2px;
+}
+
+.stat-chip:hover,
+.stat-chip:active {
+  color: var(--gold-bright);
+  text-decoration-color: var(--gold);
+}
+
+.stat-chip.flag-ok {
+  color: var(--ok);
+}
+
+.stat-chip.flag-bad {
+  color: var(--danger-bright);
+}
+
+.stat-chip-hint {
+  color: var(--gold-dim);
+  font-size: 0.68rem;
+}
+
+.status-row-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.status-row-btn:hover .status-label,
+.status-row-btn:active .status-label {
+  color: var(--gold-bright);
+}
+
+.status-help-hero {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 0 2px;
+}
+
+.status-help-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  object-fit: cover;
+  object-position: top center;
+  border: 1px solid var(--gold);
+  background: #1a1208;
+  flex-shrink: 0;
+}
+
+.status-card-focus {
+  border-color: var(--gold-bright) !important;
+  box-shadow: 0 0 0 1px var(--gold), 0 0 12px rgba(201, 162, 39, 0.2);
 }
 
 .play-head-main {

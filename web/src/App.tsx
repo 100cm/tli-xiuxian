@@ -633,7 +633,13 @@ function PlayScreen() {
   const [gearSlot, setGearSlot] = useState<EquipSlot | 'bag' | null>(null)
   const [dualOpen, setDualOpen] = useState(false)
   const [attrOpen, setAttrOpen] = useState(false)
+  const [statusOpen, setStatusOpen] = useState(false)
+  const [statusFocus, setStatusFocus] = useState<string | undefined>()
   const hero = getHero(player.heroId)
+  const openStatus = (focus?: string) => {
+    setStatusFocus(focus)
+    setStatusOpen(true)
+  }
   const attrs = displayAttrs(player)
   const need = cultivationNeed(player.realm, player.layer, player.minor)
   const pct = Math.min(100, Math.round((player.cultivation / need) * 100))
@@ -670,32 +676,72 @@ function PlayScreen() {
     <div className="play-layout">
       <header className="play-head panel">
         <div className="play-head-top">
-          <img className="play-avatar" src={hero.portrait} alt={hero.name} />
+          <button
+            type="button"
+            className="play-avatar-btn"
+            onClick={() => openStatus('hero')}
+            title="点击查看人物与状态说明"
+          >
+            <img className="play-avatar" src={hero.portrait} alt={hero.name} />
+          </button>
           <div className="play-head-main">
             <div className="play-head-row">
-              <span className="play-name">{hero.name}</span>
-              <span className="play-path">{hero.pathName}</span>
-              <span className="play-realm">{formatRealm(player.realm, player.layer, player.minor)}</span>
+              <button type="button" className="play-name-btn" onClick={() => openStatus('hero')}>
+                <span className="play-name">{hero.name}</span>
+                <span className="play-path">{hero.pathName}</span>
+              </button>
+              <button type="button" className="stat-chip" onClick={() => openStatus('realm')}>
+                {formatRealm(player.realm, player.layer, player.minor)}
+              </button>
               <span className="play-meta">
                 {player.year}年{player.month}月
               </span>
             </div>
             <div className="play-head-row play-head-sub">
-              <span>
+              <button type="button" className="stat-chip" onClick={() => openStatus('life')}>
                 寿{player.age.toFixed(0)}/{player.lifespan}
-              </span>
-              <span>石{player.spiritStones}</span>
-              <span>心{player.daoHeart}</span>
-              <span>孽{player.karma}</span>
-              {player.flags.includes('foundation_pill') && <span className="flag-ok">筑基丹</span>}
-              {player.flags.includes('core_materials') && <span className="flag-ok">结丹材</span>}
-              {player.flags.includes('nascent_item') && <span className="flag-ok">婴变物</span>}
-              {player.flags.includes('soul_item') && <span className="flag-ok">化神念</span>}
-              {player.injury > 0 && <span className="flag-bad">伤{player.injury}</span>}
+              </button>
+              <button type="button" className="stat-chip" onClick={() => openStatus('stones')}>
+                石{player.spiritStones}
+              </button>
+              <button type="button" className="stat-chip" onClick={() => openStatus('heart')}>
+                心{player.daoHeart}
+              </button>
+              <button type="button" className="stat-chip" onClick={() => openStatus('karma')}>
+                孽{player.karma}
+              </button>
+              {player.flags.includes('foundation_pill') && (
+                <button type="button" className="stat-chip flag-ok" onClick={() => openStatus('flags')}>
+                  筑基丹
+                </button>
+              )}
+              {player.flags.includes('core_materials') && (
+                <button type="button" className="stat-chip flag-ok" onClick={() => openStatus('flags')}>
+                  结丹材
+                </button>
+              )}
+              {player.flags.includes('nascent_item') && (
+                <button type="button" className="stat-chip flag-ok" onClick={() => openStatus('flags')}>
+                  婴变物
+                </button>
+              )}
+              {player.flags.includes('soul_item') && (
+                <button type="button" className="stat-chip flag-ok" onClick={() => openStatus('flags')}>
+                  化神念
+                </button>
+              )}
+              {player.injury > 0 && (
+                <button type="button" className="stat-chip flag-bad" onClick={() => openStatus('injury')}>
+                  伤{player.injury}
+                </button>
+              )}
+              <button type="button" className="stat-chip stat-chip-hint" onClick={() => openStatus()}>
+                说明
+              </button>
             </div>
           </div>
         </div>
-        <div className="status-row tight">
+        <button type="button" className="status-row tight status-row-btn" onClick={() => openStatus('cult')}>
           <span className="status-label">修</span>
           <div className="bar">
             <i style={{ width: `${pct}%` }} />
@@ -703,8 +749,8 @@ function PlayScreen() {
           <span className="status-num">
             {player.cultivation}/{need}
           </span>
-        </div>
-        <div className="status-row tight">
+        </button>
+        <button type="button" className="status-row tight status-row-btn" onClick={() => openStatus('hp')}>
           <span className="status-label">血</span>
           <div className="bar hp">
             <i style={{ width: `${(player.hp / player.maxHp) * 100}%` }} />
@@ -712,7 +758,7 @@ function PlayScreen() {
           <span className="status-num">
             {player.hp}/{player.maxHp}
           </span>
-        </div>
+        </button>
         <button
           type="button"
           className="play-subline play-subline-btn"
@@ -807,6 +853,226 @@ function PlayScreen() {
       {attrOpen && (
         <AttrHelpModal attrs={attrs} base={player.attrs} onClose={() => setAttrOpen(false)} />
       )}
+      {statusOpen && (
+        <StatusHelpModal
+          player={player}
+          focusId={statusFocus}
+          onClose={() => setStatusOpen(false)}
+          onOpenAttrs={() => {
+            setStatusOpen(false)
+            setAttrOpen(true)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function StatusHelpModal({
+  player,
+  focusId,
+  onClose,
+  onOpenAttrs,
+}: {
+  player: ReturnType<typeof withGearDefaults>
+  focusId?: string
+  onClose: () => void
+  onOpenAttrs: () => void
+}) {
+  useEffect(() => {
+    if (!focusId) return
+    const el = document.getElementById(`status-card-${focusId}`)
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [focusId])
+
+  const hero = getHero(player.heroId)
+  const need = cultivationNeed(player.realm, player.layer, player.minor)
+  const tip = getCultivationTip(
+    player.realm,
+    player.layer,
+    player.minor,
+    player.cultivation,
+    player.flags,
+  )
+  const flagItems: { id: string; name: string; has: boolean; detail: string }[] = [
+    {
+      id: 'foundation_pill',
+      name: '筑基丹',
+      has: player.flags.includes('foundation_pill'),
+      detail: '炼气十三层圆满后突破筑基的必需品。可从坊市、探险、机缘获得。',
+    },
+    {
+      id: 'core_materials',
+      name: '结丹材',
+      has: player.flags.includes('core_materials'),
+      detail: '筑基圆满后结成金丹所需材料（辅材/主材抽象为一类标记）。',
+    },
+    {
+      id: 'nascent_item',
+      name: '婴变物',
+      has: player.flags.includes('nascent_item'),
+      detail: '结丹圆满后孕育元婴所需的关键异宝或机缘标记。',
+    },
+    {
+      id: 'soul_item',
+      name: '化神念',
+      has: player.flags.includes('soul_item'),
+      detail: '元婴圆满后渡劫化神、证道所需的神念/天材地宝标记。',
+    },
+  ]
+
+  const cards: {
+    id: string
+    title: string
+    value: string
+    tag?: string
+    detail: string
+    extra?: string[]
+  }[] = [
+    {
+      id: 'hero',
+      title: `${hero.name} · ${hero.pathName}`,
+      value: hero.resourceName,
+      tag: '英雄形态',
+      detail: hero.description,
+      extra: [
+        `专属资源：${hero.resourceName}（上限 ${hero.resourceMax}，当前 ${player.resource}）`,
+        `标签：${hero.tags.join('、') || '无'}`,
+        '头像、名称均可点开本说明。形态决定起手功法倾向与部分专属事件。',
+      ],
+    },
+    {
+      id: 'realm',
+      title: '境界',
+      value: formatRealm(player.realm, player.layer, player.minor),
+      tag: '修真阶位',
+      detail:
+        '炼气 → 筑基 → 结丹 → 元婴 → 化神。炼气按层数，其后分初期/中期/后期/圆满。圆满且修为满、材料齐后方可突破。化神证道即通关。',
+      extra: [`当前：${tip.title} — ${tip.detail}`],
+    },
+    {
+      id: 'life',
+      title: '寿元',
+      value: `${player.age.toFixed(0)} / ${player.lifespan}`,
+      tag: '虚岁 / 上限',
+      detail:
+        '年龄随年月增长；寿元上限随大境界提升。虚岁达到寿元上限会寿终身死（一命硬核，无轮回）。疗伤、突破、部分天劫也可能折寿。',
+      extra: [`历法：第 ${player.year} 年 ${player.month} 月`],
+    },
+    {
+      id: 'stones',
+      title: '灵石（石）',
+      value: String(player.spiritStones),
+      tag: '货币',
+      detail:
+        '修真界通货。用于坊市购买丹药/装备/材料、双修、部分事件选项与机缘。探险、PK、出售多余装备、出身初始均可获得。',
+      extra: ['坊市价高；卖装回收价低于坊市。灵石不足时相关行动会锁定。'],
+    },
+    {
+      id: 'heart',
+      title: '道心（心）',
+      value: String(player.daoHeart),
+      tag: '精神底线',
+      detail:
+        '道心归零会心魔入体、身死道消。突破失败、邪功、心魔事件会掉道心；稳心、疗伤、部分正道选项可回升。',
+      extra: [
+        `心魔风险：${player.heartDemonRisk}（苦修/闭关积攒，影响走火与效率）`,
+        '志（六维）越高，突破与抗心魔越稳。',
+      ],
+    },
+    {
+      id: 'karma',
+      title: '杀孽（孽）',
+      value: String(player.karma),
+      tag: '因果',
+      detail:
+        '杀戮、魔功、黑市等会抬高杀孽；善举、散功赎罪等可降低。影响魔道/正道向事件出现与天劫体感难度。',
+      extra: ['高孽更容易卷入血斗与天罚类机缘，收益风险并存。'],
+    },
+    {
+      id: 'injury',
+      title: '伤势（伤）',
+      value: String(player.injury),
+      tag: player.injury > 0 ? '需疗伤' : '健康',
+      detail:
+        '战斗、天劫、失败选项会造成伤势。伤势降低闭关/苦修/专修/双修的修为效率，并拖累突破成功率。疗伤行动与部分丹药可削减。',
+      extra: player.injury > 0 ? ['顶栏出现红色「伤」标记时务必优先处理。'] : ['当前无伤，效率满额。'],
+    },
+    {
+      id: 'cult',
+      title: '修为（修）',
+      value: `${player.cultivation} / ${need}`,
+      tag: '本境进度',
+      detail:
+        '闭关、苦修、专修、双修、部分事件可增长修为。条满后小境自动推进；大境圆满需材料 +「突破」行动。',
+      extra: [tip.detail],
+    },
+    {
+      id: 'hp',
+      title: '气血（血）',
+      value: `${player.hp} / ${player.maxHp}`,
+      tag: '生命',
+      detail:
+        '战斗、危险选项、天劫会掉血；归零则身死。疗伤、双修、丹药、部分选项回血。体魄影响气血上限。',
+      extra: [`法力 ${player.mana}/${player.maxMana}（术法向预留资源）`],
+    },
+    {
+      id: 'flags',
+      title: '突破材料',
+      value: flagItems.filter((f) => f.has).map((f) => f.name).join('、') || '暂无',
+      tag: '大境门槛',
+      detail: '各大境突破除修为圆满外，还需对应材料标记。顶栏绿色标签即已入手。',
+      extra: flagItems.map((f) => `${f.has ? '✓' : '○'} ${f.name}：${f.detail}`),
+    },
+  ]
+
+  return (
+    <div className="modal-mask" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal-sheet panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2>人物与状态</h2>
+          <button type="button" className="btn btn-mini" onClick={onClose}>
+            关闭
+          </button>
+        </div>
+        <div className="status-help-hero">
+          <img src={hero.portrait} alt={hero.name} className="status-help-avatar" />
+          <div>
+            <strong style={{ color: 'var(--gold-bright)' }}>{hero.title}</strong>
+            <p className="muted" style={{ margin: '2px 0 0', fontSize: '0.75rem' }}>
+              点顶栏头像 / 寿石心孽 / 修血条均可打开本说明
+            </p>
+          </div>
+        </div>
+        <div className="modal-body">
+          {cards.map((c) => (
+            <div
+              key={c.id}
+              className={`talent-detail-card${focusId === c.id ? ' status-card-focus' : ''}`}
+              id={`status-card-${c.id}`}
+            >
+              <div className="talent-detail-title">
+                <strong>
+                  {c.title}
+                  {c.value ? ` · ${c.value}` : ''}
+                </strong>
+                {c.tag && <span className="tag">{c.tag}</span>}
+              </div>
+              <p className="talent-detail-desc">{c.detail}</p>
+              {c.extra && c.extra.length > 0 && (
+                <ul className="talent-effect-list">
+                  {c.extra.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+          <button type="button" className="btn btn-block" style={{ textAlign: 'center' }} onClick={onOpenAttrs}>
+            查看六维属性说明（攻敏智体运志）
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -905,25 +1171,11 @@ function AttrHelpModal({
           })}
           <div className="talent-detail-card">
             <div className="talent-detail-title">
-              <strong>其它顶栏</strong>
+              <strong>顶栏状态</strong>
             </div>
-            <ul className="talent-effect-list">
-              <li>
-                <strong>寿</strong>：当前虚岁 / 寿元上限，到顶会寿终。
-              </li>
-              <li>
-                <strong>石（灵石）</strong>：货币，双修、坊市、部分选项消耗。
-              </li>
-              <li>
-                <strong>心（道心）</strong>：归零会心魔身死；突破失败、邪功会掉。
-              </li>
-              <li>
-                <strong>孽（杀孽）</strong>：影响魔道/正道向事件与天劫难度体感。
-              </li>
-              <li>
-                <strong>伤</strong>：降低闭关/苦修/专修/双修修为效率，并拖累突破成功率。
-              </li>
-            </ul>
+            <p className="talent-detail-desc">
+              寿 / 石 / 心 / 孽 / 伤 / 修 / 血 的完整说明：关闭后点头像或对应数值查看。
+            </p>
           </div>
         </div>
       </div>
